@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Outlet {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  warehouse      Warehouse?
+  bomOutlets     BomOutlet[]
+  salesOrders    SalesOrder[]
+
+  @@map("outlets")
+}
+
+model Warehouse {
+  id        String   @id @default(uuid())
+  outletId  String   @unique @map("outlet_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  outlet              Outlet                @relation(fields: [outletId], references: [id])
+  inventoryTransactions InventoryTransaction[]
+
+  @@map("warehouses")
+}
+
+model ProductCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@map("product_categories")
+}
+
+model Uom {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  symbol    String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@map("uoms")
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  contact   String?
+  phone     String?
+  email     String?
+  address   String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@map("suppliers")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  salesOrders SalesOrder[]
+
+  @@map("customers")
+}
+
+model PaymentMethod {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  payments Payment[]
+
+  @@map("payment_methods")
+}
+
+model Product {
+  id         String   @id @default(uuid())
+  name       String
+  sku        String   @unique
+  price      Int      @default(0)
+  categoryId String?  @map("category_id")
+  uomId      String?  @map("uom_id")
+  supplierId String?  @map("supplier_id")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  category        ProductCategory?   @relation(fields: [categoryId], references: [id])
+  uom             Uom?               @relation(fields: [uomId], references: [id])
+  supplier        Supplier?          @relation(fields: [supplierId], references: [id])
+  salesOrderItems SalesOrderItem[]
+  bomOutlets      BomOutlet[]
+  bomIngredients  BomIngredient[]
+  transactions    InventoryTransaction[]
+
+  @@index([categoryId])
+  @@index([supplierId])
+  @@map("products")
+}
+
+model BomOutlet {
+  id        String   @id @default(uuid())
+  outletId  String   @map("outlet_id")
+  productId String   @map("product_id")
+  qty       Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  product     Product         @relation(fields: [productId], references: [id])
+  outlet      Outlet          @relation(fields: [outletId], references: [id])
+  ingredients BomIngredient[]
+
+  @@map("bom_outlets")
+}
+
+model BomIngredient {
+  id          String @id @default(uuid())
+  bomOutletId String @map("bom_outlet_id")
+  productId   String @map("product_id")
+  qty         Int
+
+  bomOutlet BomOutlet @relation(fields: [bomOutletId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@map("bom_ingredients")
+}
+
+model InventoryTransaction {
+  id           String   @id @default(uuid())
+  warehouseId  String   @map("warehouse_id")
+  productId    String   @map("product_id")
+  qty          Int
+  type         String
+  refId        String?  @map("ref_id")
+  runningStock Int      @map("running_stock")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@index([warehouseId, productId, createdAt])
+  @@map("inventory_transactions")
+}
+
+model SalesOrder {
+  id         String   @id @default(uuid())
+  outletId   String   @map("outlet_id")
+  customerId String?  @map("customer_id")
+  totalAmt   Int      @map("total_amt")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  outlet   Outlet           @relation(fields: [outletId], references: [id])
+  customer Customer?        @relation(fields: [customerId], references: [id])
+  items    SalesOrderItem[]
+  payment  Payment?
+
+  @@index([outletId])
+  @@index([customerId])
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id           String @id @default(uuid())
+  salesOrderId String @map("sales_order_id")
+  productId    String @map("product_id")
+  qty          Int
+  price        Int
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id])
+  product    Product    @relation(fields: [productId], references: [id])
+
+  @@index([salesOrderId])
+  @@map("sales_order_items")
+}
+
+model Payment {
+  id           String   @id @default(uuid())
+  salesOrderId String   @unique @map("sales_order_id")
+  methodId     String   @map("method_id")
+  amount       Int
+  status       String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  salesOrder    SalesOrder     @relation(fields: [salesOrderId], references: [id])
+  paymentMethod PaymentMethod  @relation(fields: [methodId], references: [id])
+
+  @@index([methodId])
+  @@map("payments")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
