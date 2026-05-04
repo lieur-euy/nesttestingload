@@ -17,7 +17,8 @@ export class SalesService {
   ) {}
 
   async createOrder(dto: CreateSalesOrderDto) {
-    const productIds = [...new Set(dto.items.map((i) => i.productId))];
+    const productIds = [...new Set(dto.items.map((i) => i.productId).filter(Boolean))] as string[];
+    if (productIds.length === 0) throw new Error('No valid product IDs in order');
 
     const bomCacheKeys = productIds.map((pid) => `bom:${dto.outletId}:${pid}`);
 

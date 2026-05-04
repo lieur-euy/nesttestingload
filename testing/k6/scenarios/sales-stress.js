@@ -37,8 +37,7 @@ export function setup() {
   }
 
   const products = fetchList(`${base}/master-data/products`);
-  const ingredients = products.filter((p) => p.sku && p.sku.startsWith('ING-'));
-  const finishGoods = products.filter((p) => p.sku && p.sku.startsWith('FG-'));
+  const finishGoods = products.filter((p) => p.id && p.sku && p.sku.startsWith('FG-'));
   const outlets = fetchList(`${base}/master-data/outlets`);
   const customers = fetchList(`${base}/master-data/customers`);
   const paymentMethods = fetchList(`${base}/master-data/payment-methods`);
@@ -81,18 +80,19 @@ export function salesStress(apiData) {
     }
   }
 
-  // Pilih 1-2 finished goods, qty=1
-  const n = Math.min(Math.floor(Math.random() * 2) + 1, apiData.finishGoods.length);
+  // Pilih 1-2 finished goods (pastikan id valid)
+  const validProducts = apiData.finishGoods.filter((p) => p.id);
+  const n = Math.min(Math.floor(Math.random() * 2) + 1, validProducts.length);
   const picked = [];
   const used = new Set();
   for (let i = 0; i < n; i++) {
     let p;
     let tries = 0;
     do {
-      p = getRandom(apiData.finishGoods);
+      p = getRandom(validProducts);
       tries++;
     } while (used.has(p.id) && tries < 20);
-    if (p && !used.has(p.id)) {
+    if (p && p.id && !used.has(p.id)) {
       used.add(p.id);
       picked.push({ productId: p.id, qty: 1 });
     }
