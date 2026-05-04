@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { execSync } from "node:child_process";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
@@ -7,7 +8,11 @@ const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-
+console.log("Syncing database schema...");
+execSync("npx prisma db push --skip-generate --accept-data-loss", {
+  stdio: "inherit",
+  env: { ...process.env, DATABASE_URL: connectionString },
+});
 
 const TABLES_TO_CLEAN = [
   'auditLog', 'payment', 'salesOrderItem', 'salesOrder',
