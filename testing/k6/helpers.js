@@ -1,17 +1,7 @@
 import http from 'k6/http';
-import { check } from 'k6';
 
 export function getRandomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
-}
-
-export function extractData(body) {
-  try {
-    const parsed = typeof body === 'string' ? JSON.parse(body) : body;
-    return parsed.data || parsed;
-  } catch {
-    return null;
-  }
 }
 
 export function fetchList(url) {
@@ -19,7 +9,7 @@ export function fetchList(url) {
   let cursor = null;
   for (let i = 0; i < 10; i++) {
     const query = cursor ? `?cursor=${cursor}&take=100` : '?take=100';
-    const res = http.get(`${url}${query}`, { tags: { name: `${url} list` } });
+    const res = http.get(`${url}${query}`);
     if (res.status !== 200) break;
     try {
       const body = JSON.parse(res.body);

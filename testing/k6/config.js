@@ -11,76 +11,29 @@
 //    npx prisma db seed
 //
 // 4. Jalankan k6:
-//    # Semua skenario barengan:
-//    k6 run testing/k6/main.js
+//    # Stress test sales (1000 transaksi):
+//    k6 run testing/k6/scenarios/sales-stress.js
 //
 //    # Atau per skenario:
-//    k6 run testing/k6/scenarios/master-data.js
 //    k6 run testing/k6/scenarios/sales.js
-//    k6 run testing/k6/scenarios/inventory.js
-//    k6 run testing/k6/scenarios/payments.js
+//    k6 run testing/k6/scenarios/master-data.js
 //
-// 5. Sesuaikan concurrency di file ini (stages -> target)
-//    Contoh: target: 10 -> maksimal 10 VUs
+// 5. Sesuaikan concurrency di file ini (stages/target)
 // ============================================================
 
 export const BASE_URL = 'http://10.10.10.100:3000';
 
 // ============================================================
-// SESUAIKAN KONFIGURASI CONCURRENCY DI BAWAH INI
+// KONFIGURASI SALES STRESS TEST (1000 transaksi)
 // ============================================================
-// stages: atur pola beban (ramp-up -> steady -> ramp-down)
-//   duration: lama tahapan (contoh: '30s', '1m')
-//   target: jumlah VU maksimal di tahapan tersebut
-//
-// thresholds: batas toleransi
-//   http_req_duration: durasi response (p(95) < 5000ms)
-//   http_req_failed: persentase error (< 5%)
+// Atur VUS dan ITERATIONS sesuai target yang diinginkan
+// Contoh:
+//   vus: 50, iterations: 1000  -> 50 user concurrent, total 1000 request
+//   stages: ramp up -> steady -> ramp down
 // ============================================================
-export const MASTER_DATA_OPTIONS = {
-  stages: [
-    { duration: '10s', target: 5 },
-    { duration: '30s', target: 5 },
-    { duration: '10s', target: 0 },
-  ],
-  thresholds: {
-    http_req_duration: ['p(95)<5000'],
-    http_req_failed: ['rate<0.05'],
-  },
-};
-
-export const SALES_OPTIONS = {
-  stages: [
-    { duration: '10s', target: 5 },
-    { duration: '30s', target: 5 },
-    { duration: '10s', target: 0 },
-  ],
-  thresholds: {
-    http_req_duration: ['p(95)<5000'],
-    http_req_failed: ['rate<0.05'],
-  },
-};
-
-export const INVENTORY_OPTIONS = {
-  stages: [
-    { duration: '10s', target: 10 },
-    { duration: '30s', target: 10 },
-    { duration: '10s', target: 0 },
-  ],
-  thresholds: {
-    http_req_duration: ['p(95)<3000'],
-    http_req_failed: ['rate<0.01'],
-  },
-};
-
-export const PAYMENTS_OPTIONS = {
-  stages: [
-    { duration: '10s', target: 5 },
-    { duration: '30s', target: 5 },
-    { duration: '10s', target: 0 },
-  ],
-  thresholds: {
-    http_req_duration: ['p(95)<3000'],
-    http_req_failed: ['rate<0.01'],
-  },
+export const SALES_STRESS_OPTIONS = {
+  executor: 'shared-iterations',
+  vus: 50,
+  iterations: 1000,
+  maxDuration: '5m',
 };

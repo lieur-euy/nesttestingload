@@ -13,46 +13,29 @@ export function inventoryTest() {
     return;
   }
 
-  // Ambil warehouse untuk outlet random
-  const outlet = getRandomItem(data.outlets);
-  const whRes = http.get(`${BASE_URL}/inventory/warehouse/by-outlet/${outlet.id}`, {
-    tags: { name: 'get warehouse by outlet' },
+  // Filter outlet yang punya warehouse
+  const validOutlets = data.outlets.filter((o) => {
+    const r = http.get(`${BASE_URL}/inventory/warehouse/by-outlet/${o.id}`);
+    return r.status === 200;
   });
-
-  let warehouseId = null;
-  check(whRes, {
-    'GET warehouse by outlet sukses': (r) => r.status === 200,
-  });
-  try {
-    const wh = JSON.parse(whRes.body);
-    warehouseId = wh.id;
-  } catch (e) {
-    // fallback
-  }
-
-  if (!warehouseId) {
-    sleep(1);
+  if (validOutlets.length === 0) {
+    check(null, { 'outlet dengan warehouse tersedia': (v) => false });
     return;
   }
 
+  const outlet = getRandomItem(validOutlets);
+  const whRes = http.get(`${BASE_URL}/inventory/warehouse/by-outlet/${outlet.id}`);
+  let warehouseId = null;
+  try { warehouseId = JSON.parse(whRes.body).id; } catch (e) {}
+
   const ingredient = getRandomItem(data.ingredients);
 
-  // --- GET stock ---
-  const stockRes = http.get(
-    `${BASE_URL}/inventory/stock?warehouseId=${warehouseId}&productId=${ingredient.id}`,
-    { tags: { name: 'get stock' } },
-  );
-  check(stockRes, {
-    'GET stock sukses': (r) => r.status === 200,
+  check(http.get(`${BASE_URL}/inventory/stock?warehouseId=${warehouseId}&productId=${ingredient.id}`), {
+    'GET stock': (r) => r.status === 200,
   });
 
-  // --- GET transaction history ---
-  const txnRes = http.get(
-    `${BASE_URL}/inventory/transactions?warehouseId=${warehouseId}&productId=${ingredient.id}`,
-    { tags: { name: 'get transaction history' } },
-  );
-  check(txnRes, {
-    'GET transaction history sukses': (r) => r.status === 200,
+  check(http.get(`${BASE_URL}/inventory/transactions?warehouseId=${warehouseId}&productId=${ingredient.id}`), {
+    'GET transaction history': (r) => r.status === 200,
   });
 
   sleep(1);

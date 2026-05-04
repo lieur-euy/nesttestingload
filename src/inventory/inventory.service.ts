@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { Prisma } from '../../generated/prisma/client';
@@ -127,13 +127,27 @@ export class InventoryService {
     };
   }
 
+  async topUpStock(warehouseId: string, productId: string, qty: number) {
+    const last = await this.prisma.inventoryTransaction.findFirst({
+      where: { warehouseId, productId },
+      orderBy: { createdAt: 'desc' },
+    });
+    const running = (last?.runningStock ?? 0) + qty;
+    await this.prisma.inventoryTransaction.create({
+      data: { warehouseId, productId, qty, type: 'ADJUSTMENT', runningStock: running },
+    });
+    await this.redis.del(`stock:${warehouseId}:${productId}`);
+  }
+
   async getWarehouseByOutlet(outletId: string) {
     const cacheKey = `warehouse:outlet:${outletId}`;
-    return this.redis.getOrSet(cacheKey, () =>
-      this.prisma.warehouse.findUniqueOrThrow({
+    return this.redis.getOrSet(cacheKey, async () => {
+      const warehouse = await this.prisma.warehouse.findUnique({
         where: { outletId },
         include: { outlet: true },
-      }),
-    );
+      });
+      if (!warehouse) throw new NotFoundException('Warehouse not found for outlet');
+      return warehouse;
+    });
   }
 }

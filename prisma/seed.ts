@@ -258,20 +258,17 @@ async function seed() {
   }
 
   const initialStock: Array<[string, number]> = [
-    [productCoffeeBeans.id, 500], [productMilk.id, 200], [productSugar.id, 1000],
-    [productIce.id, 500], [productTea.id, 1000], [productRice.id, 300],
-    [productEgg.id, 600], [productOil.id, 200], [productSalt.id, 200],
-    [productSpice.id, 200], [productChicken.id, 200], [productFlour.id, 200],
-    [productButter.id, 100], [productSyrup.id, 100], [productBread.id, 300],
-    [productCheese.id, 500], [productChoco.id, 100],
+    [productCoffeeBeans.id, 500], [productMilk.id, 500], [productSugar.id, 500],
+    [productIce.id, 500], [productTea.id, 500], [productRice.id, 500],
+    [productEgg.id, 500], [productOil.id, 500], [productSalt.id, 500],
+    [productSpice.id, 500], [productChicken.id, 500], [productFlour.id, 500],
+    [productButter.id, 500], [productSyrup.id, 500], [productBread.id, 500],
+    [productCheese.id, 500], [productChoco.id, 500],
   ];
 
-  for (const [pid, qty] of initialStock) {
-    await seedStock(wh1.id, pid, qty);
-  }
-  for (const wh of [wh2, wh3]) {
+  for (const wh of [wh1, wh2, wh3]) {
     for (const [pid, qty] of initialStock) {
-      await seedStock(wh.id, pid, Math.floor(qty * 0.4));
+      await seedStock(wh.id, pid, qty);
     }
   }
 

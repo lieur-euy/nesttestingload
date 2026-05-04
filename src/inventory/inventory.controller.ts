@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 
 @Controller('inventory')
@@ -26,6 +26,14 @@ export class InventoryController {
       cursor,
       take ? Number(take) : 50,
     );
+  }
+
+  @Post('stock')
+  async topUpStock(
+    @Body() body: { warehouseId: string; productId: string; qty: number },
+  ) {
+    await this.svc.topUpStock(body.warehouseId, body.productId, body.qty);
+    return { ok: true };
   }
 
   @Get('warehouse/by-outlet/:outletId')
