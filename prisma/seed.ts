@@ -3,16 +3,24 @@ import { execSync } from "node:child_process";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
+
 const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
+const schema = connectionString.match(/[?&]schema=([^&]+)/)?.[1];
+const adapter = new PrismaPg(pool, { schema });
 const prisma = new PrismaClient({ adapter });
 
-console.log("Syncing database schema...");
-execSync("npx prisma db push --skip-generate --accept-data-loss", {
-  stdio: "inherit",
-  env: { ...process.env, DATABASE_URL: connectionString },
-});
+let didPush = false;
+
+async function ensureTables() {
+  if (didPush) return;
+  console.log("Syncing database schema...");
+  execSync("npx prisma db push --accept-data-loss", {
+    stdio: "inherit",
+    env: { ...process.env },
+  });
+  didPush = true;
+}
 
 const TABLES_TO_CLEAN = [
   'auditLog', 'payment', 'salesOrderItem', 'salesOrder',
@@ -34,8 +42,7 @@ async function clean() {
   if (anyDeleted) console.log('Existing data cleaned.');
 }
 
-async function main() {
-  await clean();
+async function seed() {
 
   console.log('Seeding master data...');
 
@@ -280,6 +287,19 @@ async function main() {
   console.log(`  BOMs: ${await prisma.bomOutlet.count()}`);
   console.log(`  BOM Ingredients: ${await prisma.bomIngredient.count()}`);
   console.log(`  Inventory Transactions: ${await prisma.inventoryTransaction.count()}`);
+}
+
+async function main() {
+  try {
+    await seed();
+  } catch (e: any) {
+    if (e?.code === 'P2021' && !didPush) {
+      await ensureTables();
+      await seed();
+      return;
+    }
+    throw e;
+  }
 }
 
 main()
