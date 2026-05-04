@@ -1,10 +1,37 @@
-import 'dotenv/config';
-import { PrismaClient } from '../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
+import "dotenv/config";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/prisma/client";
+const connectionString = `${process.env.DATABASE_URL}`;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
+
+
+const TABLES_TO_CLEAN = [
+  'auditLog', 'payment', 'salesOrderItem', 'salesOrder',
+  'inventoryTransaction', 'bomIngredient', 'bomOutlet',
+  'warehouse', 'outlet', 'product', 'customer', 'supplier',
+  'paymentMethod', 'productCategory', 'uom',
+] as const;
+
+async function clean() {
+  let anyDeleted = false;
+  for (const name of TABLES_TO_CLEAN) {
+    try {
+      await (prisma[name as keyof typeof prisma] as any).deleteMany();
+      anyDeleted = true;
+    } catch (e: any) {
+      if (e?.code !== 'P2021') throw e;
+    }
+  }
+  if (anyDeleted) console.log('Existing data cleaned.');
+}
 
 async function main() {
+  await clean();
+
   console.log('Seeding master data...');
 
   // --- UOMs ---
@@ -146,7 +173,7 @@ async function main() {
   const wh2 = await prisma.warehouse.create({ data: { outletId: outlet2.id, name: 'Gudang Kedua' } });
   const wh3 = await prisma.warehouse.create({ data: { outletId: outlet3.id, name: 'Gudang Mangga Dua' } });
 
-  // --- BOMs for outlet 1 ---
+  // --- BOMs ---
   async function createBom(outletId: string, productId: string, ingredients: Array<{ productId: string; qty: number }>) {
     const bom = await prisma.bomOutlet.create({ data: { outletId, productId, qty: 1 } });
     await prisma.bomIngredient.createMany({
@@ -200,7 +227,8 @@ async function main() {
   ]);
 
   // Copy BOMs to outlets 2 and 3
-  for (const bom of await prisma.bomOutlet.findMany({ where: { outletId: outlet1.id }, include: { ingredients: true } })) {
+  const boms = await prisma.bomOutlet.findMany({ where: { outletId: outlet1.id }, include: { ingredients: true } });
+  for (const bom of boms) {
     await createBom(outlet2.id, bom.productId, bom.ingredients.map((i) => ({ productId: i.productId, qty: i.qty })));
     await createBom(outlet3.id, bom.productId, bom.ingredients.map((i) => ({ productId: i.productId, qty: i.qty })));
   }
@@ -251,7 +279,9 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Seed failed:', e);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
